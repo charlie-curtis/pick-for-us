@@ -18,7 +18,7 @@ const db = getDatabase(app)
 
 let roomId = new URLSearchParams(window.location.search).get('room')
 if (!roomId) {
-  roomId = Math.random().toString(36).slice(2, 10)
+  roomId = Math.random().toString(36).slice(2, 11)
   window.history.replaceState({}, '', `?room=${roomId}`)
 }
 const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`
