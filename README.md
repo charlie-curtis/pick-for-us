@@ -31,6 +31,10 @@ meal-picker/
 │   ├── main.jsx        # Mounts the React app into index.html's #root div
 │   ├── App.jsx         # The entire application — all logic and UI
 │   └── App.css         # All styles, built on a CSS design token system
+├── worker/
+│   ├── src/
+│   │   └── index.js    # Cloudflare Worker — proxies Google APIs, enforces rate limit
+│   └── wrangler.toml   # Worker config (KV namespace bindings)
 └── docs/
     └── ui-research/    # Design research reports used to inform the UI
 ```
@@ -77,6 +81,48 @@ Styles built on a **CSS custom property (token) system** defined in `:root`:
 | `--motion-*` | Duration + easing curves for transitions |
 
 Everything else in the file references these tokens. Changing a token propagates the change everywhere it's used.
+
+---
+
+## Cloudflare Worker proxy
+
+The nearby restaurant search feature routes through a Cloudflare Worker rather than calling Google APIs directly from the browser.
+
+```
+Browser ──▶ Cloudflare Worker ──▶ Google Places API
+                  │                Google Geocoding API
+                  └── KV (rate limit counter)
+```
+
+**Why a proxy?** The Google API key must never appear in browser code — anything shipped to the client is publicly visible. The Worker keeps the key server-side as an encrypted secret, and the browser never sees it.
+
+**Rate limiting:** Each request checks a global counter stored in Cloudflare KV. The counter is keyed by day (`global:<day-number>`) and capped at 100 requests/day across all users. When the cap is hit, the Worker returns a `429` error and the app surfaces a message. The counter resets automatically at midnight UTC — no cron job needed, the day-bucketed key just changes with time.
+
+**Routes:**
+
+| Method | Path | Proxies to |
+|---|---|---|
+| `POST` | `/nearby` | Google Places Nearby Search API |
+| `GET` | `/geocode?address=...` | Google Geocoding API |
+
+### Worker setup
+
+```bash
+cd worker
+npm install
+npx wrangler login
+npx wrangler kv:namespace create RATE_LIMIT_KV
+npx wrangler kv:namespace create RATE_LIMIT_KV --preview
+# paste the returned IDs into worker/wrangler.toml
+npx wrangler secret put GOOGLE_PLACES_API_KEY
+npx wrangler deploy
+```
+
+Then add the deployed worker URL to `.env.local` in the project root:
+
+```
+VITE_WORKER_URL=https://meal-picker-proxy.<your-subdomain>.workers.dev
+```
 
 ---
 
@@ -133,3 +179,5 @@ Open [http://localhost:5173](http://localhost:5173). To share a session, copy th
 | Build tool | Vite | Fast dev server, JSX compilation |
 | Realtime database | Firebase Realtime Database | Push-based sync across clients with no backend |
 | Styling | Plain CSS + custom properties | No build-time dependency, token system gives design consistency |
+| API proxy | Cloudflare Workers | Keeps Google API key server-side, enforces global rate limit |
+| Rate limit store | Cloudflare KV | Persistent daily request counter, auto-expires |
