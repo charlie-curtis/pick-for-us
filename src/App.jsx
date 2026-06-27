@@ -186,7 +186,7 @@ export default function App() {
 
   async function searchNearbyPlaces(lat, lng) {
     const workerUrl = import.meta.env.VITE_WORKER_URL
-    if (!workerUrl) throw new Error('Add VITE_WORKER_URL to .env.local')
+    if (!workerUrl) throw new Error('Search unavailable.')
     const radiusMeters = radius * 1609.34
     const res = await fetch(`${workerUrl}/nearby`, {
       method: 'POST',
@@ -203,7 +203,7 @@ export default function App() {
       })
     })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error?.message ?? 'Nearby search failed')
+    if (!res.ok) throw new Error(res.status === 429 ? 'Daily search limit reached — try again tomorrow.' : 'Search failed — try again.')
     const names = (data.places ?? [])
       .filter(p => p.displayName?.text)
       .map(p => p.displayName.text)
@@ -212,10 +212,10 @@ export default function App() {
 
   async function geocodeAddress(address) {
     const workerUrl = import.meta.env.VITE_WORKER_URL
-    if (!workerUrl) throw new Error('Add VITE_WORKER_URL to .env.local')
+    if (!workerUrl) throw new Error('Search unavailable.')
     const res = await fetch(`${workerUrl}/geocode?address=${encodeURIComponent(address)}`)
     const data = await res.json()
-    if (data.status !== 'OK') throw new Error('Address not found — try a more specific address or zip code')
+    if (data.status !== 'OK') throw new Error('Address not found — try a more specific address or zip code.')
     const { lat, lng } = data.results[0].geometry.location
     return { lat, lng }
   }
