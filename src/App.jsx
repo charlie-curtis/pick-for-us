@@ -268,6 +268,7 @@ export default function App() {
             {viewerCount > 0 && (
               <span
                 className="viewer-count"
+                data-tooltip={`${viewerCount} ${viewerCount === 1 ? "person" : "people"} who said 'I don't care, you pick'`}
                 aria-label={`${viewerCount} ${viewerCount === 1 ? 'person' : 'people'} in this room`}
               >
                 <span className="viewer-dot" aria-hidden="true" />

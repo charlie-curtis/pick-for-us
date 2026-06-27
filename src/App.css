@@ -596,6 +596,48 @@ select:focus-visible {
   flex: none;
 }
 
+/* Tooltip on viewer count */
+[data-tooltip] { position: relative; }
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 220px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--neutral-900);
+  color: var(--neutral-0);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-3);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--motion-short) var(--ease-standard),
+              transform var(--motion-short) var(--ease-standard);
+  white-space: normal;
+}
+
+/* Small arrow pointing down */
+[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  right: 12px;
+  border: 5px solid transparent;
+  border-top-color: var(--neutral-900);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-short) var(--ease-standard);
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:hover::before { opacity: 1; transform: translateY(0); }
+
 /* ==========================================================================
    Title bar (title + inline share button)
    ========================================================================== */
