@@ -118,6 +118,14 @@ body {
   padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
 }
 
+.page-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
 /* Global focus-visible ring (keyboard users only) */
 :focus-visible {
   outline: none;
@@ -730,6 +738,26 @@ select:focus-visible {
 
   /* Remove button always visible on touch (no hover) */
   .remove-btn { opacity: 1; }
+}
+
+/* ==========================================================================
+   Privacy footer
+   ========================================================================== */
+.privacy-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.privacy-footer svg {
+  flex: none;
+  opacity: 0.6;
 }
 
 /* ==========================================================================

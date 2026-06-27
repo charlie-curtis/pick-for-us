@@ -18,7 +18,7 @@ const db = getDatabase(app)
 
 let roomId = new URLSearchParams(window.location.search).get('room')
 if (!roomId) {
-  roomId = Math.random().toString(36).slice(2, 8)
+  roomId = Math.random().toString(36).slice(2, 10)
   window.history.replaceState({}, '', `?room=${roomId}`)
 }
 const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`
@@ -256,6 +256,7 @@ export default function App() {
 
   return (
     <main className="page">
+      <div className="page-content">
       <div className="card">
 
         {/* Title + inline share — collaboration is the differentiator, surface it here */}
@@ -484,6 +485,14 @@ export default function App() {
           </div>
         </div>
 
+      </div>
+      <footer className="privacy-footer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+        <span>No accounts. No tracking. Location data is never stored.</span>
+      </footer>
       </div>
     </main>
   )
