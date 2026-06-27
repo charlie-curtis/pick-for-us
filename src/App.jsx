@@ -243,8 +243,8 @@ export default function App() {
         {/* Title + inline share — collaboration is the differentiator, surface it here */}
         <div className="title-bar">
           <div className="title-block">
-            <h1>Meal Picker</h1>
-            <p className="subtitle">Add options and let fate decide.</p>
+            <h1>Pick For Us</h1>
+            <p className="subtitle">Both add. Neither decides.</p>
           </div>
           <button className="btn-share-icon" onClick={copyLink} aria-label="Copy room link">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">

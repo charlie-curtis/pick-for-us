@@ -1,6 +1,6 @@
-# Meal Picker
+# Pick For Us
 
-A real-time collaborative meal picker. Add restaurants to a shared list, spin to pick one at random, and see the result instantly across all connected users.
+A real-time collaborative food picker for two. Add restaurants to a shared list, spin to pick one at random, and see the result instantly across all connected users.
 
 **Live:** run locally with `npm run dev` — see [Getting Started](#getting-started).
 
@@ -153,8 +153,8 @@ Restaurant keys are Firebase push IDs (random, collision-safe, time-ordered). Th
 **Prerequisites:** Node.js 18+
 
 ```bash
-git clone https://github.com/charlie-curtis/meal-picker.git
-cd meal-picker
+git clone https://github.com/charlie-curtis/pick-for-us.git
+cd pick-for-us
 npm install
 npm run dev
 ```
