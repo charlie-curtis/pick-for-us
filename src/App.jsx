@@ -51,14 +51,14 @@ export default function App() {
   const [spinIndex, setSpinIndex] = useState(null)
   const [inputVal, setInputVal] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const [copyLabel, setCopyLabel] = useState('Copy link')
   const [nearbyOpen, setNearbyOpen] = useState(false)
+  const [copyLabel, setCopyLabel] = useState('Share')
   const [locationInput, setLocationInput] = useState('')
   const [radius, setRadius] = useState(5)
   const [nearbyResults, setNearbyResults] = useState([])
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState('')
+  const [dupMsg, setDupMsg] = useState('')
   const inputRef = useRef(null)
   const spinTimer = useRef(null)
 
@@ -82,19 +82,21 @@ export default function App() {
   const entries = Object.entries(restaurants)
   const addedNames = new Set(entries.map(([, n]) => n.toLowerCase()))
 
-  function addRestaurant(name) {
+  // refocus=true only when called from the manual input — chips pass false
+  // so multi-adding from chips doesn't yank keyboard focus away
+  function addRestaurant(name, refocus = true) {
     const n = (name ?? inputVal).trim()
     if (!n) return
-    // Skip duplicates (case-insensitive)
     const exists = entries.some(([, existing]) => existing.toLowerCase() === n.toLowerCase())
     if (exists) {
-      setInputVal('')
-      inputRef.current?.focus()
+      setDupMsg('Already in list')
+      setTimeout(() => setDupMsg(''), 2000)
+      if (refocus) { setInputVal(''); inputRef.current?.focus() }
       return
     }
     push(restaurantsRef, n)
     setInputVal('')
-    inputRef.current?.focus()
+    if (refocus) inputRef.current?.focus()
   }
 
   function removeRestaurant(key) {
@@ -111,15 +113,12 @@ export default function App() {
     const winnerIndex = Math.floor(Math.random() * total)
     const winnerName = entries[winnerIndex][1]
 
-    // Reduced motion: skip the cycle entirely and select instantly.
     if (prefersReducedMotion()) {
       setWinner(winnerName)
       set(winnerRef, winnerName)
       return
     }
 
-    // Build a decelerating schedule that ramps from snappy to slow,
-    // so the highlight visibly settles to a stop (no strobe).
     const delays = []
     let d = 70
     while (d < 600) {
@@ -127,7 +126,6 @@ export default function App() {
       d = Math.round(d * 1.12)
     }
     const ticks = delays.length
-    // Step sequentially through rows, landing the final tick on the winner.
     const start = ((winnerIndex - (ticks - 1)) % total + total) % total
 
     setSpinning(true)
@@ -152,7 +150,7 @@ export default function App() {
   function copyLink() {
     navigator.clipboard.writeText(shareUrl)
     setCopyLabel('Copied!')
-    setTimeout(() => setCopyLabel('Copy link'), 2000)
+    setTimeout(() => setCopyLabel('Share'), 2000)
   }
 
   function getCurrentPosition() {
@@ -241,12 +239,93 @@ export default function App() {
   return (
     <main className="page">
       <div className="card">
-        <div className="title-block">
-          <h1>Meal Picker</h1>
-          <p className="subtitle">Add your options and let fate decide.</p>
+
+        {/* Title + inline share — collaboration is the differentiator, surface it here */}
+        <div className="title-bar">
+          <div className="title-block">
+            <h1>Meal Picker</h1>
+            <p className="subtitle">Add options and let fate decide.</p>
+          </div>
+          <button className="btn-share-icon" onClick={copyLink} aria-label="Copy room link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="share-label">{copyLabel}</span>
+          </button>
         </div>
 
-        {/* Help disclosure */}
+        {/* Core workflow: add → list → pick */}
+        <div className="input-section">
+          <div className="input-row">
+            <label htmlFor="restaurant-input" className="sr-only">Restaurant name</label>
+            <input
+              id="restaurant-input"
+              ref={inputRef}
+              type="text"
+              placeholder="Restaurant name…"
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addRestaurant()}
+            />
+            <button
+              className="btn-add"
+              onClick={() => addRestaurant()}
+              disabled={!inputVal.trim()}
+            >
+              Add
+            </button>
+          </div>
+          {dupMsg && <p className="dup-msg" role="alert">{dupMsg}</p>}
+
+          <ul className="restaurant-list" aria-label={`${entries.length} restaurants added`}>
+            {entries.length === 0 ? (
+              <li className="empty-state">
+                <svg className="empty-icon" width="36" height="36" viewBox="0 0 24 24"
+                     fill="none" aria-hidden="true">
+                  <path d="M7 3v8a2 2 0 0 1-2 2H4M5.5 3v6M4 3v6M17 3c-1.5 0-2.5 2-2.5 5s1 3 2.5 3 2.5 0 2.5-3-1-5-2.5-5ZM17 11v10"
+                        stroke="currentColor" strokeWidth="1.4"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="empty-title">No restaurants yet</span>
+                <span className="empty-hint">Add one above, or browse suggestions below.</span>
+              </li>
+            ) : (
+              entries.map(([key, name], i) => {
+                const isHighlight = spinning && spinIndex === i
+                const isWinner = !spinning && winner === name
+                return (
+                  <li key={key} className={isHighlight ? 'highlight' : isWinner ? 'winner' : ''}>
+                    <span>{name}</span>
+                    {isWinner && (
+                      <span className="winner-badge" aria-hidden="true">★ Winner</span>
+                    )}
+                    <button
+                      className="remove-btn"
+                      aria-label={`Remove ${name}`}
+                      onClick={() => removeRestaurant(key)}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
+
+        <div className="pick-row">
+          <button className="btn-pick" onClick={pickRandom} disabled={spinning || !entries.length}>
+            {spinning ? 'Picking…' : 'Pick one'}
+          </button>
+          <div className="result" role="status" aria-live="polite">
+            {winner && !spinning ? `Let's go to ${winner}!` : ''}
+          </div>
+        </div>
+
+        {/* Discovery: static suggestions (secondary, below the fold) */}
         <div className="help-section">
           <button
             className="disclosure-toggle"
@@ -255,7 +334,7 @@ export default function App() {
             onClick={() => setHelpOpen(o => !o)}
           >
             <Chevron />
-            Need help? Browse options
+            Browse suggestions
           </button>
           <div id="help-panel" className={`collapse ${helpOpen ? 'open' : ''}`}>
             <div className="collapse-inner" {...(!helpOpen ? { inert: '' } : {})}>
@@ -270,7 +349,7 @@ export default function App() {
                           <button
                             key={name}
                             className={`help-chip${added ? ' added' : ''}`}
-                            onClick={() => addRestaurant(name)}
+                            onClick={() => addRestaurant(name, false)}
                             disabled={added}
                           >
                             {name}
@@ -285,7 +364,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Nearby restaurants */}
+        {/* Discovery: nearby restaurants (secondary, below the fold) */}
         <div className="nearby-section">
           <button
             className="disclosure-toggle"
@@ -300,7 +379,9 @@ export default function App() {
             <div className="collapse-inner" {...(!nearbyOpen ? { inert: '' } : {})}>
               <div className="nearby-tray">
                 <div className="nearby-controls">
+                  <label htmlFor="location-input" className="sr-only">Address or zip code</label>
                   <input
+                    id="location-input"
                     type="text"
                     placeholder="Address or zip code…"
                     value={locationInput}
@@ -351,7 +432,7 @@ export default function App() {
                           <button
                             key={name}
                             className={`help-chip${added ? ' added' : ''}`}
-                            onClick={() => addRestaurant(name)}
+                            onClick={() => addRestaurant(name, false)}
                             disabled={added}
                           >
                             {name}
@@ -366,92 +447,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Input + list */}
-        <div className="input-section">
-          <div className="input-row">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Restaurant name…"
-              value={inputVal}
-              onChange={e => setInputVal(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addRestaurant()}
-            />
-            <button
-              className="btn-add"
-              onClick={() => addRestaurant()}
-              disabled={!inputVal.trim()}
-            >
-              Add
-            </button>
-          </div>
-
-          <ul className="restaurant-list" aria-label={`${entries.length} restaurants added`}>
-            {entries.length === 0 ? (
-              <li className="empty-state">
-                <svg className="empty-icon" width="36" height="36" viewBox="0 0 24 24"
-                     fill="none" aria-hidden="true">
-                  <path d="M7 3v8a2 2 0 0 1-2 2H4M5.5 3v6M4 3v6M17 3c-1.5 0-2.5 2-2.5 5s1 3 2.5 3 2.5 0 2.5-3-1-5-2.5-5ZM17 11v10"
-                        stroke="currentColor" strokeWidth="1.4"
-                        strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="empty-title">No restaurants yet</span>
-                <span className="empty-hint">Add one above, or pick from suggestions.</span>
-              </li>
-            ) : (
-              entries.map(([key, name], i) => {
-                const isHighlight = spinning && spinIndex === i
-                const isWinner = !spinning && winner === name
-                return (
-                  <li key={key} className={isHighlight ? 'highlight' : isWinner ? 'winner' : ''}>
-                    <span>{name}</span>
-                    {isWinner && (
-                      <span className="winner-badge" aria-hidden="true">★ Winner</span>
-                    )}
-                    <button
-                      className="remove-btn"
-                      aria-label={`Remove ${name}`}
-                      onClick={() => removeRestaurant(key)}
-                    >
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  </li>
-                )
-              })
-            )}
-          </ul>
-        </div>
-
-        {/* Pick (primary) + result */}
-        <div className="pick-row">
-          <button className="btn-pick" onClick={pickRandom} disabled={spinning || !entries.length}>
-            {spinning ? 'Picking…' : 'Pick one'}
-          </button>
-          <div className="result" role="status" aria-live="polite">
-            {winner && !spinning ? `Let's go to ${winner}!` : ''}
-          </div>
-        </div>
-
-        {/* Share disclosure (tertiary) */}
-        <div className="share-section">
-          <button
-            className="disclosure-toggle"
-            aria-expanded={shareOpen}
-            aria-controls="share-box"
-            onClick={() => setShareOpen(o => !o)}
-          >
-            <Chevron />
-            Share this room
-          </button>
-          <div id="share-box" className={`collapse ${shareOpen ? 'open' : ''}`}>
-            <div className="collapse-inner" {...(!shareOpen ? { inert: '' } : {})}>
-              <div className="share-field">
-                <span>{shareUrl}</span>
-                <button className="btn-copy" onClick={copyLink}>{copyLabel}</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </main>
   )
