@@ -36,16 +36,36 @@
       margin-bottom: 28px;
     }
 
+    .share-section {
+      margin-top: 16px;
+    }
+
+    .btn-share {
+      width: 100%;
+      padding: 14px;
+      background: #f5f0eb;
+      color: #1a1a1a;
+      font-size: 1.05rem;
+      border-radius: 10px;
+    }
+
     .share-box {
       display: flex;
       align-items: center;
       gap: 8px;
       background: #f5f0eb;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 24px;
+      border-radius: 0 0 10px 10px;
+      padding: 0 14px;
       font-size: 0.82rem;
       color: #666;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.25s ease, padding 0.25s ease;
+    }
+
+    .share-box.open {
+      max-height: 60px;
+      padding: 10px 14px;
     }
 
     .share-box span {
@@ -173,6 +193,64 @@
       text-align: center;
       padding: 8px 0;
     }
+
+    .help-toggle {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 0.82rem;
+      padding: 0;
+      margin-bottom: 20px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .help-panel {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease;
+    }
+
+    .help-panel.open {
+      max-height: 400px;
+      margin-bottom: 20px;
+    }
+
+    .help-category {
+      margin-bottom: 12px;
+    }
+
+    .help-category-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .help-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .help-chip {
+      padding: 5px 12px;
+      background: #f5f0eb;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: #444;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+
+    .help-chip:hover {
+      background: #ffe8dc;
+      color: #ff6b35;
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -180,10 +258,8 @@
     <h1>Meal Picker</h1>
     <p class="subtitle">Add your options and let fate decide.</p>
 
-    <div class="share-box">
-      <span id="shareUrl"></span>
-      <button class="btn-copy" onclick="copyLink()">Copy link</button>
-    </div>
+    <button class="help-toggle" onclick="toggleHelp()">Need help? Browse options</button>
+    <div class="help-panel" id="helpPanel"></div>
 
     <div class="input-row">
       <input id="restaurantInput" type="text" placeholder="Restaurant name…" />
@@ -197,6 +273,14 @@
     <div class="pick-row">
       <button class="btn-pick" onclick="pickRandom()">Pick one</button>
       <div class="result" id="result"></div>
+    </div>
+
+    <div class="share-section">
+      <button class="btn-share" onclick="toggleShare()">Share</button>
+      <div class="share-box" id="shareBox">
+        <span id="shareUrl"></span>
+        <button class="btn-copy" onclick="copyLink()">Copy link</button>
+      </div>
     </div>
   </div>
 
@@ -234,10 +318,47 @@
     const result = document.getElementById('result');
     const emptyHint = document.getElementById('emptyHint');
 
+    const SUGGESTIONS = {
+      'Burgers': ["McDonald's", "Wendy's", "Burger King", "Shake Shack", "Chick-fil-A"],
+      'Pizza': ["Domino's", "Pizza Hut", "Papa John's", "Little Caesars"],
+      'Mexican': ["Chipotle", "Taco Bell", "Qdoba"],
+      'Chicken': ["Popeyes", "KFC", "Wingstop", "Raising Cane's"],
+      'Asian': ["Panda Express", "Cava", "Sweetgreen"],
+      'Sandwiches': ["Subway", "Panera Bread", "Jimmy John's"],
+    };
+
+    const helpPanel = document.getElementById('helpPanel');
+    Object.entries(SUGGESTIONS).forEach(([category, items]) => {
+      const div = document.createElement('div');
+      div.className = 'help-category';
+      div.innerHTML = `<div class="help-category-label">${category}</div><div class="help-chips"></div>`;
+      const chips = div.querySelector('.help-chips');
+      items.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'help-chip';
+        btn.textContent = name;
+        btn.onclick = () => { restaurantsRef.push(name); };
+        chips.appendChild(btn);
+      });
+      helpPanel.appendChild(div);
+    });
+
+    function toggleHelp() {
+      helpPanel.classList.toggle('open');
+    }
+
     input.addEventListener('keydown', e => { if (e.key === 'Enter') addRestaurant(); });
+
+    function toggleShare() {
+      const box = document.getElementById('shareBox');
+      box.classList.toggle('open');
+    }
 
     function copyLink() {
       navigator.clipboard.writeText(shareUrl);
+      const btn = document.querySelector('.btn-copy');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy link', 2000);
     }
 
     function addRestaurant() {
