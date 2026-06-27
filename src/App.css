@@ -565,6 +565,38 @@ select:focus-visible {
 }
 
 /* ==========================================================================
+   Viewer presence count
+   ========================================================================== */
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.viewer-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  animation: result-in var(--motion-short) var(--ease-emphasized-decel);
+}
+
+.viewer-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex: none;
+}
+
+/* ==========================================================================
    Title bar (title + inline share button)
    ========================================================================== */
 .title-bar {

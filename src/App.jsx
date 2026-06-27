@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { initializeApp } from 'firebase/app'
-import { getDatabase, ref, push, remove, set, onValue } from 'firebase/database'
+import { getDatabase, ref, push, remove, set, onValue, onDisconnect } from 'firebase/database'
 import './App.css'
 
 const firebaseConfig = {
@@ -59,6 +59,7 @@ export default function App() {
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [dupMsg, setDupMsg] = useState('')
+  const [viewerCount, setViewerCount] = useState(0)
   const inputRef = useRef(null)
   const spinTimer = useRef(null)
 
@@ -72,9 +73,26 @@ export default function App() {
     const unsub2 = onValue(winnerRef, snap => {
       setWinner(snap.val())
     })
+
+    // Presence: write on connect, auto-remove on disconnect (even on crash/close)
+    const presenceRef = push(ref(db, `rooms/${roomId}/presence`))
+    const connectedRef = ref(db, '.info/connected')
+    const unsubConnected = onValue(connectedRef, snap => {
+      if (snap.val() === true) {
+        onDisconnect(presenceRef).remove()
+        set(presenceRef, true)
+      }
+    })
+    const unsubPresence = onValue(ref(db, `rooms/${roomId}/presence`), snap => {
+      setViewerCount(snap.val() ? Object.keys(snap.val()).length : 0)
+    })
+
     return () => {
       unsub1()
       unsub2()
+      unsubConnected()
+      unsubPresence()
+      remove(presenceRef)
       if (spinTimer.current) clearTimeout(spinTimer.current)
     }
   }, [])
@@ -246,15 +264,26 @@ export default function App() {
             <h1>Pick For Us</h1>
             <p className="subtitle">Both add. Neither decides.</p>
           </div>
-          <button className="btn-share-icon" onClick={copyLink} aria-label="Copy room link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="share-label">{copyLabel}</span>
-          </button>
+          <div className="title-actions">
+            {viewerCount > 0 && (
+              <span
+                className="viewer-count"
+                aria-label={`${viewerCount} ${viewerCount === 1 ? 'person' : 'people'} in this room`}
+              >
+                <span className="viewer-dot" aria-hidden="true" />
+                {viewerCount}
+              </span>
+            )}
+            <button className="btn-share-icon" onClick={copyLink} aria-label="Copy room link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="share-label">{copyLabel}</span>
+            </button>
+          </div>
         </div>
 
         {/* Core workflow: add → list → pick */}
