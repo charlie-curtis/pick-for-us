@@ -11,83 +11,25 @@ A real-time collaborative food picker. Add places together, share one live room,
 ## How it works
 
 ```
-Browser A ──┐
-            ├──▶ Firebase Realtime Database ──▶ Browser B
-Browser C ──┘
+Browser A ◀──▶ Firebase Realtime Database ◀──▶ Browser B
+   │                                                   │
+   └──────────────▶ Cloudflare Worker ◀────────────────┘
+                         │
+                         ├──▶ Google Maps APIs
+                         └──▶ Cloudflare KV (daily request counter)
 ```
 
-There is no app server for the shared-room workflow. The app is a static React frontend that reads and writes directly to Firebase Realtime Database. Firebase pushes changes to all connected clients over WebSockets — so when one user adds a restaurant, everyone in the same room sees it immediately.
+There is no app server for the shared-room workflow. The app is a static React frontend that reads from and writes to Firebase Realtime Database. Firebase also pushes updates back to connected clients over WebSockets — so when one user adds a restaurant, everyone in the same room sees it immediately.
 
-Each session gets a **room ID** generated on first load and stored in the URL (`?room=abc123`). Sharing that URL gives anyone access to the same room.
+Nearby restaurant search is the one server-side path: the browser calls a Cloudflare Worker, and the Worker calls Google Places or Geocoding with the Google API key kept server-side. The Worker also stores a global daily request counter in Cloudflare KV.
+
+Each session gets a **room ID** generated on first load and stored in the URL (`?room=abc123xyz`). Sharing that URL gives anyone access to the same room.
 
 ---
 
-## File structure
+## Project docs
 
-```
-pick-for-us/
-├── index.html          # Entry point — just a shell div that Vite populates
-├── vite.config.js      # Tells Vite to use the React JSX compiler
-├── package.json        # Dependencies: React, Firebase, Vite
-├── public/
-│   ├── og-image.png    # Social preview image for shared links
-│   └── og-image.svg    # Source SVG for the social preview image
-├── src/
-│   ├── main.jsx        # Mounts the React app into index.html's #root div
-│   ├── App.jsx         # The entire application — all logic and UI
-│   └── App.css         # All styles, built on a CSS design token system
-├── worker/
-│   ├── src/
-│   │   └── index.js    # Cloudflare Worker — proxies Google APIs, enforces rate limit
-│   └── wrangler.toml   # Worker config (KV namespace bindings)
-└── docs/
-    └── ui-research/    # Design research reports used to inform the UI
-```
-
-### `index.html`
-A near-empty HTML file — mostly the SEO/social meta tags, a `<div id="root">` that React mounts into, and a `<script>` tag pointing at `src/main.jsx`. Vite injects the compiled JS/CSS bundles here at build time.
-
-### `vite.config.js`
-Small Vite config that registers the `@vitejs/plugin-react` plugin, which tells Vite's compiler how to transform JSX syntax (the HTML-in-JS that React uses) into plain JavaScript the browser can run.
-
-### `src/main.jsx`
-The bootstrap file. Calls `createRoot().render(<App />)` to hand control to React. You rarely need to touch this.
-
-### `src/App.jsx`
-The entire application lives here. It has three responsibilities:
-
-**1. Firebase setup (module level, runs once)**
-- Initialises the Firebase app with the project config
-- Gets the database instance
-- Computes the room ID from the URL (or generates one and writes it to the URL)
-- Defines the `SUGGESTIONS` data (pre-loaded restaurant options by category)
-
-**2. State + data (inside the `App` component)**
-- `useState` hooks hold local UI state: the restaurant list, the current winner, spin state, input value, and panel open/closed states
-- `useEffect` sets up Firebase `onValue` listeners on mount — one for the restaurant list, one for the winner, one for connection state, and one for room presence. These fire immediately with current data, then again whenever any client writes a change. They are cleaned up when the component unmounts.
-- Presence is tracked with Firebase `onDisconnect`, which lets the UI show when multiple people are in the room.
-- `addRestaurant`, `removeRestaurant`, `pickRandom` — the three mutations. Each writes to Firebase, which propagates to all connected clients via the listeners.
-- The winner is **chosen instantly** when `pickRandom` is called; the spin animation is purely visual. The winning restaurant is also written directly to local state (not just Firebase) to handle the case where the same winner is picked twice in a row — Firebase won't emit an `onValue` event if the value didn't change.
-- Nearby search uses the Cloudflare Worker URL from `VITE_WORKER_URL` to geocode an address or search around the user's current location.
-
-**3. JSX (the return block)**
-Renders the UI: title, presence count, invite button, input row, restaurant list, pick button + result, collapsible suggestions, and collapsible nearby search. `Chevron` is the only small helper component; the rest stays in the main `App` function for simplicity.
-
-### `src/App.css`
-Styles built on a **CSS custom property (token) system** defined in `:root`:
-
-| Token group | Purpose |
-|---|---|
-| `--space-*` | 4/8px spacing scale applied everywhere |
-| `--neutral-*` | 11-step warm gray ramp |
-| `--color-*` | Semantic tokens (text, surface, border, primary, danger, winner) mapped from the ramp |
-| `--text-*` | Type scale (display → label) on an Inter-first system fallback stack |
-| `--weight-*` | Font weights (regular/medium/semibold) |
-| `--radius-*` | Border radius scale (sm/md/lg/pill) |
-| `--elev-*` | Two-layer box shadows for elevation |
-| `--motion-*` | Duration + easing curves for transitions |
-
-Everything else in the file references these tokens. Changing a token propagates the change everywhere it's used.
+The README is intentionally kept high-level. For a deeper maintainer walkthrough of the file structure, React app, CSS tokens, and Worker proxy, see [docs/architecture.md](docs/architecture.md).
 
 ---
 
@@ -97,13 +39,17 @@ The nearby restaurant search feature routes through a Cloudflare Worker rather t
 
 ```
 Browser ──▶ Cloudflare Worker ──▶ Google Places API
-                  │                Google Geocoding API
-                  └── KV (rate limit counter)
+                  │         └────▶ Google Geocoding API
+                  └──────────────▶ KV (global daily counter)
 ```
 
 **Why a proxy?** The Google API key must never appear in browser code — anything shipped to the client is publicly visible. The Worker keeps the key server-side as an encrypted secret, and the browser never sees it.
 
-**Rate limiting:** Each request checks a global counter stored in Cloudflare KV. The counter is keyed by day (`global:<day-number>`) and capped at 100 requests/day across all users. When the cap is hit, the Worker returns a `429` error and the app surfaces a message. The counter resets automatically at midnight UTC — no cron job needed, the day-bucketed key just changes with time.
+**CORS:** The Worker returns CORS headers for `https://justpickfood.com` and `https://www.justpickfood.com`. This lets the production frontend read Worker responses in the browser.
+
+**Rate limiting:** The Worker checks a global counter stored in Cloudflare KV. The counter is keyed by day (`global:<day-number>`) and capped at 100 requests/day across all users. When the cap is hit, the Worker returns a `429` error and the app surfaces a message. The counter resets automatically at midnight UTC — no cron job needed, the day-bucketed key just changes with time.
+
+The counter is intentionally simple and global. Because Cloudflare KV is eventually consistent, a burst of simultaneous requests can overshoot the exact cap slightly, but it still bounds usage for this small app. For an exact global counter, the Worker would need a stronger coordination primitive such as Durable Objects.
 
 **Routes:**
 
@@ -125,7 +71,7 @@ npx wrangler secret put GOOGLE_PLACES_API_KEY
 npx wrangler deploy
 ```
 
-Then add the deployed worker URL to `.env.local` in the project root:
+Then add the deployed Worker URL to `.env.local` in the project root:
 
 ```
 VITE_WORKER_URL=https://meal-picker-proxy.<your-subdomain>.workers.dev
@@ -171,6 +117,8 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). To share a session, copy the URL (which now includes `?room=<id>`) and open it in another browser tab or send it to someone.
 
+Nearby restaurant search also needs `VITE_WORKER_URL` in `.env.local`; see the Worker setup section above.
+
 ### Other commands
 
 | Command | Description |
@@ -191,3 +139,4 @@ Open [http://localhost:5173](http://localhost:5173). To share a session, copy th
 | Styling | Plain CSS + custom properties | No build-time dependency, token system gives design consistency |
 | API proxy | Cloudflare Workers | Keeps Google API key server-side, enforces global rate limit |
 | Rate limit store | Cloudflare KV | Persistent daily request counter, auto-expires |
+| Maps/search | Google Places + Geocoding APIs | Finds nearby restaurants from address or current location |
