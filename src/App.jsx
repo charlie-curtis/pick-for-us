@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getDatabase, ref, push, remove, set, onValue, onDisconnect } from 'firebase/database'
+import { getCurrentPosition, geocodeAddress, searchNearbyPlaces } from './services/locationService.js'
 import { AppHeader } from './components/AppHeader.jsx'
 import { NearbySearchPanel } from './components/NearbySearchPanel.jsx'
 import { PickControls } from './components/PickControls.jsx'
@@ -176,55 +177,6 @@ export default function App() {
     setTimeout(() => setCopyLabel('Invite'), 2000)
   }
 
-  function getCurrentPosition() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation not supported by your browser'))
-        return
-      }
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => reject(new Error('Location access denied — try entering an address instead'))
-      )
-    })
-  }
-
-  async function searchNearbyPlaces(lat, lng) {
-    const workerUrl = import.meta.env.VITE_WORKER_URL
-    if (!workerUrl) throw new Error('Search unavailable.')
-    const radiusMeters = radius * 1609.34
-    const res = await fetch(`${workerUrl}/nearby`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        includedTypes: ['restaurant'],
-        maxResultCount: 20,
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: radiusMeters,
-          }
-        }
-      })
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(res.status === 429 ? 'Daily search limit reached — try again tomorrow.' : 'Search failed — try again.')
-    const names = (data.places ?? [])
-      .filter(p => p.displayName?.text)
-      .map(p => p.displayName.text)
-    return [...new Set(names)]
-  }
-
-  async function geocodeAddress(address) {
-    const workerUrl = import.meta.env.VITE_WORKER_URL
-    if (!workerUrl) throw new Error('Search unavailable.')
-    const res = await fetch(`${workerUrl}/geocode?address=${encodeURIComponent(address)}`)
-    const data = await res.json()
-    if (data.status !== 'OK') throw new Error('Address not found — try a more specific address or zip code.')
-    const { lat, lng } = data.results[0].geometry.location
-    return { lat, lng }
-  }
-
   async function findNearby() {
     if (!locationInput.trim()) return
     setLocationLoading(true)
@@ -232,7 +184,7 @@ export default function App() {
     setNearbyResults([])
     try {
       const { lat, lng } = await geocodeAddress(locationInput.trim())
-      const names = await searchNearbyPlaces(lat, lng)
+      const names = await searchNearbyPlaces(lat, lng, radius)
       if (names.length === 0) setLocationError('No restaurants found — try a larger radius.')
       else setNearbyResults(names)
     } catch (e) {
@@ -249,7 +201,7 @@ export default function App() {
     setLocationInput('')
     try {
       const { lat, lng } = await getCurrentPosition()
-      const names = await searchNearbyPlaces(lat, lng)
+      const names = await searchNearbyPlaces(lat, lng, radius)
       if (names.length === 0) setLocationError('No restaurants found — try a larger radius.')
       else setNearbyResults(names)
     } catch (e) {
