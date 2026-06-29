@@ -4,7 +4,7 @@ A real-time collaborative food picker. Add places together, share one live room,
 
 **Live:** [justpickfood.com](https://justpickfood.com)
 
-![Just Pick Food app screenshot](docs/assets/pick-for-us-screenshot.png)
+<img src="docs/assets/pick-for-us-screenshot.png" alt="Just Pick Food app screenshot" width="420">
 
 ---
 
