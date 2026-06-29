@@ -27,24 +27,6 @@ Each session gets a **room ID** generated on first load and stored in the URL (`
 
 ---
 
-## Architecture notes
-
-Detailed architecture notes live in [docs/architecture.md](docs/architecture.md), including the file structure, React app walkthrough, CSS tokens, Firebase data model, and Worker proxy details.
-
----
-
-## Cloudflare Worker proxy
-
-Nearby restaurant search routes through a Cloudflare Worker instead of exposing Google API calls directly in the browser. The Worker keeps the Google API key server-side and uses a global daily counter to bound API usage. See [docs/architecture.md](docs/architecture.md#worker-proxy) for implementation details.
-
----
-
-## Getting started
-
-Setup instructions, local commands, and Worker deployment notes live in [docs/getting-started.md](docs/getting-started.md).
-
----
-
 ## Tech stack
 
 | Layer | Technology | Why |
@@ -56,3 +38,15 @@ Setup instructions, local commands, and Worker deployment notes live in [docs/ge
 | API proxy | Cloudflare Workers | Keeps Google API key server-side |
 | Usage guard | Cloudflare KV | Stores the daily API usage counter |
 | Maps/search | Google Places + Geocoding APIs | Finds nearby restaurants from address or current location |
+
+---
+
+## Architecture notes
+
+Detailed architecture notes live in [docs/architecture.md](docs/architecture.md), including the file structure, React app walkthrough, CSS tokens, Firebase data model, and Worker proxy details.
+
+---
+
+## Getting started
+
+Setup instructions, local commands, and Worker deployment notes live in [docs/getting-started.md](docs/getting-started.md).
