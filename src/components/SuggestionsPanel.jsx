@@ -1,8 +1,16 @@
 import { Chevron } from './Icons.jsx'
 
+const SUGGESTIONS = {
+  'Burgers':    ["McDonald's", "Wendy's", "Burger King", "Shake Shack", "Chick-fil-A"],
+  'Pizza':      ["Domino's", "Pizza Hut", "Papa John's", "Little Caesars"],
+  'Mexican':    ["Chipotle", "Taco Bell", "Qdoba"],
+  'Chicken':    ["Popeyes", "KFC", "Wingstop", "Raising Cane's"],
+  'Asian':      ["Panda Express", "Cava", "Sweetgreen"],
+  'Sandwiches': ["Subway", "Panera Bread", "Jimmy John's"],
+}
+
 export function SuggestionsPanel({
   open,
-  suggestions,
   addedNames,
   onToggle,
   onAddRestaurant,
@@ -21,7 +29,7 @@ export function SuggestionsPanel({
       <div id="help-panel" className={`collapse ${open ? 'open' : ''}`}>
         <div className="collapse-inner" {...(!open ? { inert: '' } : {})}>
           <div className="help-tray">
-            {Object.entries(suggestions).map(([category, items]) => (
+            {Object.entries(SUGGESTIONS).map(([category, items]) => (
               <div key={category} className="help-category">
                 <div className="help-category-label">{category}</div>
                 <div className="help-chips">

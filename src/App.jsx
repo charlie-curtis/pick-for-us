@@ -31,15 +31,6 @@ if (!roomId) {
 }
 const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`
 
-const SUGGESTIONS = {
-  'Burgers':    ["McDonald's", "Wendy's", "Burger King", "Shake Shack", "Chick-fil-A"],
-  'Pizza':      ["Domino's", "Pizza Hut", "Papa John's", "Little Caesars"],
-  'Mexican':    ["Chipotle", "Taco Bell", "Qdoba"],
-  'Chicken':    ["Popeyes", "KFC", "Wingstop", "Raising Cane's"],
-  'Asian':      ["Panda Express", "Cava", "Sweetgreen"],
-  'Sandwiches': ["Subway", "Panera Bread", "Jimmy John's"],
-}
-
 const prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
@@ -248,7 +239,6 @@ export default function App() {
 
           <SuggestionsPanel
             open={helpOpen}
-            suggestions={SUGGESTIONS}
             addedNames={addedNames}
             onToggle={() => setHelpOpen(o => !o)}
             onAddRestaurant={addRestaurant}
