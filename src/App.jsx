@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getDatabase, ref, push, remove, set, onValue, onDisconnect } from 'firebase/database'
+import { AppHeader } from './components/AppHeader.jsx'
+import { NearbySearchPanel } from './components/NearbySearchPanel.jsx'
+import { PickControls } from './components/PickControls.jsx'
+import { PrivacyFooter } from './components/PrivacyFooter.jsx'
+import { RestaurantForm } from './components/RestaurantForm.jsx'
+import { RestaurantList } from './components/RestaurantList.jsx'
+import { SuggestionsPanel } from './components/SuggestionsPanel.jsx'
 import './App.css'
 
 const firebaseConfig = {
@@ -35,13 +42,10 @@ const SUGGESTIONS = {
 const prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-function Chevron() {
-  return (
-    <svg className="chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6"
-            strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+function friendlyError(e) {
+  if (e instanceof TypeError && /fetch|network/i.test(e.message))
+    return 'Search unavailable — check your connection and try again.'
+  return e.message
 }
 
 export default function App() {
@@ -231,7 +235,7 @@ export default function App() {
       if (names.length === 0) setLocationError('No restaurants found — try a larger radius.')
       else setNearbyResults(names)
     } catch (e) {
-      setLocationError(e.message)
+      setLocationError(friendlyError(e))
     } finally {
       setLocationLoading(false)
     }
@@ -248,7 +252,7 @@ export default function App() {
       if (names.length === 0) setLocationError('No restaurants found — try a larger radius.')
       else setNearbyResults(names)
     } catch (e) {
-      setLocationError(e.message)
+      setLocationError(friendlyError(e))
     } finally {
       setLocationLoading(false)
     }
@@ -257,242 +261,63 @@ export default function App() {
   return (
     <main className="page">
       <div className="page-content">
-      <div className="card">
+        <div className="card">
+          <AppHeader
+            viewerCount={viewerCount}
+            copyLabel={copyLabel}
+            onCopyLink={copyLink}
+          />
 
-        {/* Title + inline share — collaboration is the differentiator, surface it here */}
-        <div className="title-bar">
-          <div className="title-block">
-            <h1>Just Pick Food</h1>
-            <p className="subtitle">Add places together. We pick one.</p>
-          </div>
-          <div className="title-actions">
-            {viewerCount > 1 && (
-              <span
-                className="viewer-count"
-                aria-label={`${viewerCount} people in this room`}
-              >
-                <span className="viewer-dot" aria-hidden="true" />
-                {`${viewerCount} here`}
-              </span>
-            )}
-            <button className="btn-share-icon" onClick={copyLink} aria-label="Copy room link">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="share-label">{copyLabel}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Core workflow: add → list → pick */}
-        <div className="input-section">
-          <div className="input-row">
-            <label htmlFor="restaurant-input" className="sr-only">Restaurant name</label>
-            <input
-              id="restaurant-input"
-              ref={inputRef}
-              type="text"
-              placeholder="Restaurant name…"
-              value={inputVal}
-              onChange={e => setInputVal(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addRestaurant()}
-              disabled={spinning}
+          <div className="input-section">
+            <RestaurantForm
+              inputRef={inputRef}
+              inputVal={inputVal}
+              dupMsg={dupMsg}
+              spinning={spinning}
+              onInputChange={setInputVal}
+              onAddRestaurant={addRestaurant}
             />
-            <button
-              className="btn-add"
-              onClick={() => addRestaurant()}
-              disabled={!inputVal.trim() || spinning}
-            >
-              Add
-            </button>
+            <RestaurantList
+              entries={entries}
+              winner={winner}
+              spinning={spinning}
+              spinIndex={spinIndex}
+              onRemoveRestaurant={removeRestaurant}
+            />
           </div>
-          {dupMsg && <p className="dup-msg" role="alert">{dupMsg}</p>}
 
-          <div className="list-wrapper">
-            {entries.length > 0 && (
-              <div className="list-meta" aria-hidden="true">
-                {entries.length} {entries.length === 1 ? 'place' : 'places'}
-              </div>
-            )}
-            <ul className="restaurant-list" aria-label={`${entries.length} restaurants added`}>
-              {entries.length === 0 ? (
-                <li className="empty-state">
-                  <svg className="empty-icon" width="36" height="36" viewBox="0 0 24 24"
-                       fill="none" aria-hidden="true">
-                    <path d="M7 3v8a2 2 0 0 1-2 2H4M5.5 3v6M4 3v6M17 3c-1.5 0-2.5 2-2.5 5s1 3 2.5 3 2.5 0 2.5-3-1-5-2.5-5ZM17 11v10"
-                          stroke="currentColor" strokeWidth="1.4"
-                          strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="empty-title">No restaurants yet</span>
-                  <span className="empty-hint">Add your first place to start the list.</span>
-                </li>
-              ) : (
-                entries.map(([key, name], i) => {
-                  const isHighlight = spinning && spinIndex === i
-                  const isWinner = !spinning && winner === name
-                  return (
-                    <li key={key} className={isHighlight ? 'highlight' : isWinner ? 'winner' : ''}>
-                      <span>{name}</span>
-                      <button
-                        className="remove-btn"
-                        aria-label={`Remove ${name}`}
-                        onClick={() => removeRestaurant(key)}
-                        disabled={spinning}
-                      >
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    </li>
-                  )
-                })
-              )}
-            </ul>
-          </div>
+          <PickControls
+            show={entries.length > 0 || spinning}
+            winner={winner}
+            spinning={spinning}
+            onPickRandom={pickRandom}
+          />
+
+          <SuggestionsPanel
+            open={helpOpen}
+            suggestions={SUGGESTIONS}
+            addedNames={addedNames}
+            onToggle={() => setHelpOpen(o => !o)}
+            onAddRestaurant={addRestaurant}
+          />
+
+          <NearbySearchPanel
+            open={nearbyOpen}
+            locationInput={locationInput}
+            radius={radius}
+            nearbyResults={nearbyResults}
+            locationLoading={locationLoading}
+            locationError={locationError}
+            addedNames={addedNames}
+            onToggle={() => setNearbyOpen(o => !o)}
+            onLocationInputChange={setLocationInput}
+            onRadiusChange={setRadius}
+            onFindNearby={findNearby}
+            onUseMyLocation={useMyLocation}
+            onAddRestaurant={addRestaurant}
+          />
         </div>
-
-        {(entries.length > 0 || spinning) && (
-          <div className="pick-row">
-            <button className="btn-pick" onClick={pickRandom} disabled={spinning}>
-              {spinning ? 'Picking…' : winner ? 'Pick again' : 'Pick one'}
-            </button>
-            <div className="result" role="status" aria-live="polite">
-              {winner && !spinning ? `Let's go to ${winner}!` : ''}
-            </div>
-          </div>
-        )}
-
-        {/* Discovery: static suggestions (secondary, below the fold) */}
-        <div className="help-section">
-          <button
-            className="disclosure-toggle"
-            aria-expanded={helpOpen}
-            aria-controls="help-panel"
-            onClick={() => setHelpOpen(o => !o)}
-          >
-            <Chevron />
-            Need ideas? Browse suggestions
-          </button>
-          <div id="help-panel" className={`collapse ${helpOpen ? 'open' : ''}`}>
-            <div className="collapse-inner" {...(!helpOpen ? { inert: '' } : {})}>
-              <div className="help-tray">
-                {Object.entries(SUGGESTIONS).map(([category, items]) => (
-                  <div key={category} className="help-category">
-                    <div className="help-category-label">{category}</div>
-                    <div className="help-chips">
-                      {items.map(name => {
-                        const added = addedNames.has(name.toLowerCase())
-                        return (
-                          <button
-                            key={name}
-                            className={`help-chip${added ? ' added' : ''}`}
-                            onClick={() => addRestaurant(name, false)}
-                            disabled={added}
-                          >
-                            {name}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Discovery: nearby restaurants (secondary, below the fold) */}
-        <div className="nearby-section">
-          <button
-            className="disclosure-toggle"
-            aria-expanded={nearbyOpen}
-            aria-controls="nearby-panel"
-            onClick={() => setNearbyOpen(o => !o)}
-          >
-            <Chevron />
-            Find restaurants nearby
-          </button>
-          <div id="nearby-panel" className={`collapse ${nearbyOpen ? 'open' : ''}`}>
-            <div className="collapse-inner" {...(!nearbyOpen ? { inert: '' } : {})}>
-              <div className="nearby-tray">
-                <div className="nearby-controls">
-                  <label htmlFor="location-input" className="sr-only">Address or zip code</label>
-                  <input
-                    id="location-input"
-                    type="text"
-                    placeholder="Address or zip code…"
-                    value={locationInput}
-                    onChange={e => setLocationInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && findNearby()}
-                  />
-                  <button
-                    className="btn-locate"
-                    onClick={useMyLocation}
-                    aria-label="Use my current location"
-                    disabled={locationLoading}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8"/>
-                      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="nearby-options-row">
-                  <label className="radius-label">
-                    Within
-                    <select value={radius} onChange={e => setRadius(Number(e.target.value))}>
-                      <option value={0.5}>0.5 mi</option>
-                      <option value={1}>1 mi</option>
-                      <option value={2}>2 mi</option>
-                      <option value={5}>5 mi</option>
-                      <option value={10}>10 mi</option>
-                    </select>
-                  </label>
-                  <button
-                    className="btn-search"
-                    onClick={findNearby}
-                    disabled={locationLoading || !locationInput.trim()}
-                  >
-                    {locationLoading ? 'Searching…' : 'Search'}
-                  </button>
-                </div>
-                {locationError && (
-                  <p className="nearby-error" role="alert">{locationError}</p>
-                )}
-                {nearbyResults.length > 0 && (
-                  <div className="nearby-results">
-                    <div className="help-category-label">{nearbyResults.length} nearby</div>
-                    <div className="help-chips">
-                      {nearbyResults.map(name => {
-                        const added = addedNames.has(name.toLowerCase())
-                        return (
-                          <button
-                            key={name}
-                            className={`help-chip${added ? ' added' : ''}`}
-                            onClick={() => addRestaurant(name, false)}
-                            disabled={added}
-                          >
-                            {name}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      <footer className="privacy-footer">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        </svg>
-        <span>No accounts. No tracking. Location data is never stored.</span>
-      </footer>
+        <PrivacyFooter />
       </div>
     </main>
   )

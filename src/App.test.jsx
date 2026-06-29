@@ -243,6 +243,17 @@ describe('App', () => {
     expect(screen.getByText('Invite')).toBeInTheDocument()
   })
 
+  it('shows the viewer count when another person is in the room', async () => {
+    await renderApp()
+    const roomId = new URLSearchParams(window.location.search).get('room')
+
+    act(() => {
+      firebaseMock.set({ path: `rooms/${roomId}/presence/other-viewer` }, true)
+    })
+
+    expect(screen.getByLabelText('2 people in this room')).toHaveTextContent('2 here')
+  })
+
   it('adds and disables restaurants from suggestions', async () => {
     await renderApp()
 
@@ -354,6 +365,18 @@ describe('App', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Location access denied — try entering an address instead'
+    )
+  })
+
+  it('reports when geolocation is unavailable', async () => {
+    vi.stubEnv('VITE_WORKER_URL', 'https://worker.example')
+    await renderApp()
+
+    await userEvent.click(screen.getByRole('button', { name: /Find restaurants nearby/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Use my current location' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Geolocation not supported by your browser'
     )
   })
 })
