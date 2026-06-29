@@ -44,7 +44,7 @@ const prefersReducedMotion = () =>
 
 function friendlyError(e) {
   if (e instanceof TypeError)
-    return 'Search unavailable — please try again later.'
+    return 'Search unavailable. Please try again later.'
   return e.message
 }
 
