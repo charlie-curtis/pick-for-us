@@ -33,10 +33,10 @@ Each session gets a **room ID** generated on first load and stored in the URL (`
 |---|---|---|
 | UI framework | React 18 | Component model, state management |
 | Build tool | Vite | Fast dev server, JSX compilation |
-| Realtime database | Firebase Realtime Database | Push-based sync across clients with no backend |
+| Realtime database | Firebase Realtime Database | Push-based sync across clients; lightweight and cheap with no backend |
 | Styling | Plain CSS + custom properties | No build-time dependency, token system gives design consistency |
 | API proxy | Cloudflare Workers | Keeps Google API key server-side |
-| Usage guard | Cloudflare KV | Stores the daily API usage counter |
+| Rate limiter | Cloudflare KV | Stores the daily API usage counter |
 | Maps/search | Google Places + Geocoding APIs | Finds nearby restaurants from address or current location |
 
 ---
