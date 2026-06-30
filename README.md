@@ -8,6 +8,15 @@ A real-time collaborative food picker. Add places together, share one live room,
 
 ---
 
+## Why this is different
+
+- **Real-time collaborative**: everyone sees changes live, no refreshing
+- **Flexible input**: choose from suggestions, add your own places, or search by address
+- **Private by default**: no ads, no tracking, location data is never stored
+- **Clean UI**: minimal design, no visual clutter
+
+---
+
 ## How it works
 
 ```
